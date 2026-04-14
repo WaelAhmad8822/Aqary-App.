@@ -1,17 +1,29 @@
 {
-  "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @workspace/aqary run build",
-  "outputDirectory": "artifacts/aqary/dist/public",
-  "functions": {
-    "api/[...all].ts": {
-      "runtime": "nodejs20.x",
-      "maxDuration": 30
-    }
-  },
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
+      "src": "api/[...all].ts",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "artifacts/aqary/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist/public"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/[...all].ts"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/artifacts/aqary/dist/public/index.html"
     }
   ]
 }
