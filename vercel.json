@@ -1,7 +1,7 @@
 {
   "installCommand": "corepack pnpm install --frozen-lockfile",
-  "buildCommand": "corepack pnpm --filter @workspace/aqary run build && node scripts/prepare-vercel-output.mjs",
-  "outputDirectory": "public",
+  "buildCommand": "corepack pnpm --filter @workspace/aqary run build",
+  "outputDirectory": "artifacts/aqary/dist/public",
   "functions": {
     "api/[...all].ts": {
       "runtime": "nodejs20.x",
