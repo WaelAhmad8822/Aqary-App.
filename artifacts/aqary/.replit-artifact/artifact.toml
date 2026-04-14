@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Aqary"
+version = "1.0.0"
+id = "artifacts/aqary"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24191
+
+[services.development]
+run = "pnpm --filter @workspace/aqary run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/aqary", "run", "build" ]
+publicDir = "artifacts/aqary/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24191"
+BASE_PATH = "/"
