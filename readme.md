@@ -69,7 +69,11 @@ This repo is configured for Vercel with:
 - Static frontend output from `artifacts/aqary/dist/public`
 - Serverless API entry at `api/[...all].ts` (Express app)
 
-In the Vercel project **Settings → General → Root Directory**, use the **repository root** (`.`). The root `vercel.json` runs **`pnpm -C artifacts/aqary run build:web`**. The `build:web` script exists both on the workspace root and in `artifacts/aqary/package.json`, so **`pnpm run build:web`** works whether Vercel’s **Root Directory** is the repo root or `artifacts/aqary`.
+In the Vercel project **Settings → General → Root Directory**, use the **repository root** (`.`). The root `vercel.json` build runs **API server esbuild first**, then the Vite frontend:
+
+`pnpm -C artifacts/api-server run build && pnpm -C artifacts/aqary run build:web`
+
+That produces `artifacts/api-server/dist/app.mjs`, which `api/[...all].ts` imports so Vercel does not type-check raw `artifacts/api-server/src/**/*.ts` with Node16 rules (which previously failed the deploy).
 
 If you still see **`ERR_PNPM_NO_SCRIPT` for `build:web`**, open **Project → Settings → General → Build & Development Settings** and remove any **custom Build Command** that overrides `vercel.json` (leave it empty to use the file), or set **Root Directory** to the repository root.
 

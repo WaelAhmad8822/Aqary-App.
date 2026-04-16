@@ -8,7 +8,7 @@
   },
   "scripts": {
     "preinstall": "node scripts/preinstall-check.mjs",
-    "build:web": "pnpm -C artifacts/aqary run build",
+    "build:web": "pnpm -C artifacts/api-server run build && pnpm -C artifacts/aqary run build",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
