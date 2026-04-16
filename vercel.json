@@ -1,6 +1,8 @@
 {
-  "installCommand": "corepack pnpm install --frozen-lockfile",
-  "buildCommand": "corepack pnpm --filter @workspace/aqary run build",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm run build:web",
   "outputDirectory": "artifacts/aqary/dist/public",
   "functions": {
     "api/[...all].ts": {
