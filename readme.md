@@ -69,16 +69,18 @@ This repo is configured for Vercel with:
 - Static frontend output from `artifacts/aqary/dist/public`
 - Serverless API entry at `api/[...all].ts` (Express app)
 
-In the Vercel project **Settings → General → Root Directory**, leave the root as the **repository root** (`.`).  
-If Root Directory is set to a subfolder (for example `artifacts/aqary`), the build must still run scripts from the monorepo root — `vercel.json` uses `pnpm -w run build:web` (`-w` = workspace root) so the command works from any package in the workspace. Prefer keeping Root Directory at the repo root.  
+In the Vercel project **Settings → General → Root Directory**, use the **repository root** (`.`). The root `vercel.json` runs **`pnpm -C artifacts/aqary run build`**, which uses the `build` script inside `artifacts/aqary/package.json` (no `build:web` script required on Vercel).
+
+If you must set Root Directory to **`artifacts/aqary`**, override in the Vercel UI: **Build Command** `pnpm run build`, **Output Directory** `dist/public`, and keep **`api/`** at the repo root by using a monorepo setup or moving the API — simplest is to keep Root Directory at the repo root.
+
 In **Framework Preset**, choose **Other** (or leave auto-detect off). The repo `vercel.json` sets `"framework": null` so Vercel treats the build output as a **static site** (HTML/JS/CSS from Vite), not a Node server entry in that folder.
 
-If you see **“No entrypoint found in output directory”**, it usually means Vercel was treating the output like a server app. Using **Framework: Other** / `framework: null` and the `build:web` script fixes that.
+If you see **“No entrypoint found in output directory”**, it usually means Vercel was treating the output like a server app. Using **Framework: Other** / `framework: null` fixes that.
 
-If **`pnpm run build:web` exits with code 1**, open the full build log on Vercel. Common causes:
+If the build step fails, open the full log on Vercel. Common causes:
 
 - **Install failed** (before build): run `pnpm install` locally with the same lockfile; if `minimumReleaseAge` in `pnpm-workspace.yaml` blocks a new package, you may need to wait or adjust the allowlist.
-- **Nested pnpm**: the repo uses `pnpm -C artifacts/aqary run build` so the build does not spawn a second `pnpm` process (more reliable on CI).
+- **`ERR_PNPM_NO_SCRIPT`**: do not rely on a root-only script name; this project’s Vercel build calls `pnpm -C artifacts/aqary run build` from the repo root.
 
 Set these Environment Variables in Vercel Project Settings:
 
