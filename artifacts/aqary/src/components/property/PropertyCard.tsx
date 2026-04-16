@@ -70,6 +70,8 @@ export function PropertyCard({ property }: PropertyCardProps) {
               src={property.imageUrl}
               alt={property.title}
               className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="flex items-center justify-center w-full h-full text-muted-foreground">

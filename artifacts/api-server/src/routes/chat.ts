@@ -1,10 +1,14 @@
 import { Router, type IRouter } from "express";
-import { eq, and, lte, gte } from "drizzle-orm";
-import { db, propertiesTable, feedbackTable } from "@workspace/db";
 import { SendChatMessageBody } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth";
 import { logger } from "../lib/logger";
 import { getMatchReasons } from "../lib/cosineSimilarity";
+import {
+  ensureMongoConnection,
+  FeedbackModel,
+  PropertyModel,
+  nextSequence,
+} from "../lib/mongo";
 
 const router: IRouter = Router();
 
@@ -177,6 +181,7 @@ const SYSTEM_PROMPT = `أنت مساعد عقاري ذكي اسمك "عقاري"
 إذا ذكر المستخدم مشكلة أو شكوى، اعتذر وأخبره أنه تم تسجيل ملاحظته.`;
 
 router.post("/chat", authMiddleware, async (req, res): Promise<void> => {
+  await ensureMongoConnection();
   const parsed = SendChatMessageBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -190,7 +195,8 @@ router.post("/chat", authMiddleware, async (req, res): Promise<void> => {
   let feedbackCreated = false;
 
   if (isComplaint) {
-    await db.insert(feedbackTable).values({
+    await FeedbackModel.create({
+      id: await nextSequence("feedback"),
       userId,
       message,
       criteria: "شكوى من المحادثة",
@@ -198,7 +204,7 @@ router.post("/chat", authMiddleware, async (req, res): Promise<void> => {
     feedbackCreated = true;
   }
 
-  const historyItems = (conversationHistory || []).map(h => ({
+  const historyItems = (conversationHistory || []).map((h: { role: string; content: string }) => ({
     role: h.role as string,
     content: h.content as string,
   }));
@@ -222,24 +228,24 @@ router.post("/chat", authMiddleware, async (req, res): Promise<void> => {
   const isBuyerReady = slots.role === "buyer" && slots.budget && slots.propertyType;
 
   if (isBuyerReady && (nextQ === "ready" || slots.location)) {
-    const conditions = [eq(propertiesTable.status, "approved")];
+    const query: Record<string, unknown> = { status: "approved" };
     if (slots.budget) {
-      conditions.push(lte(propertiesTable.price, Math.round(slots.budget * 1.15)));
+      query.price = { $lte: Math.round(slots.budget * 1.15) };
     }
     if (slots.propertyType) {
-      conditions.push(eq(propertiesTable.propertyType, slots.propertyType as "apartment" | "villa" | "commercial" | "land"));
+      query.propertyType = slots.propertyType;
     }
     if (slots.location) {
-      conditions.push(eq(propertiesTable.location, slots.location));
+      query.location = slots.location;
     }
 
-    let props = await db.select().from(propertiesTable).where(and(...conditions)).limit(5);
+    let props = await PropertyModel.find(query).limit(5).lean();
 
     if (props.length === 0 && slots.location) {
-      const fallbackConditions = [eq(propertiesTable.status, "approved")];
-      if (slots.budget) fallbackConditions.push(lte(propertiesTable.price, Math.round(slots.budget * 1.15)));
-      if (slots.propertyType) fallbackConditions.push(eq(propertiesTable.propertyType, slots.propertyType as "apartment" | "villa" | "commercial" | "land"));
-      props = await db.select().from(propertiesTable).where(and(...fallbackConditions)).limit(5);
+      const fallbackQuery: Record<string, unknown> = { status: "approved" };
+      if (slots.budget) fallbackQuery.price = { $lte: Math.round(slots.budget * 1.15) };
+      if (slots.propertyType) fallbackQuery.propertyType = slots.propertyType;
+      props = await PropertyModel.find(fallbackQuery).limit(5).lean();
     }
 
     const userPrefs = {

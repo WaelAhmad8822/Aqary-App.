@@ -13,7 +13,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Users, Home, Activity, CheckCircle, XCircle, MessageSquare } from "lucide-react";
+import { Loader2, Users, Home, Activity, CheckCircle, XCircle, MessageSquare, BarChart3, Eye } from "lucide-react";
+
+const interactionTypeLabel = (t: string) =>
+  ({
+    view: "مشاهدة عقار",
+    save: "حفظ / مفضلة",
+    contact: "تواصل",
+    scroll: "تمرير",
+    time_spent: "وقت في الصفحة",
+  })[t] ?? t;
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -69,7 +78,7 @@ export default function Admin() {
         {isAnalyticsLoading ? (
           <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
             <Card>
               <CardContent className="p-6 flex flex-col gap-2">
                 <Users className="w-6 h-6 text-blue-500 mb-2" />
@@ -94,8 +103,15 @@ export default function Admin() {
             <Card>
               <CardContent className="p-6 flex flex-col gap-2">
                 <Activity className="w-6 h-6 text-purple-500 mb-2" />
-                <p className="text-sm text-muted-foreground">تفاعلات المستخدمين</p>
+                <p className="text-sm text-muted-foreground">تفاعلات العقارات</p>
                 <p className="text-3xl font-bold">{analytics?.totalInteractions || 0}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6 flex flex-col gap-2">
+                <Eye className="w-6 h-6 text-cyan-500 mb-2" />
+                <p className="text-sm text-muted-foreground">زيارات الصفحات</p>
+                <p className="text-3xl font-bold">{analytics?.totalPageViews ?? 0}</p>
               </CardContent>
             </Card>
             <Card className={analytics?.unresolvedFeedbacks ? "border-destructive bg-destructive/5" : ""}>
@@ -109,8 +125,9 @@ export default function Admin() {
         )}
 
         <Tabs defaultValue="properties" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-8 h-auto flex-wrap gap-1">
             <TabsTrigger value="properties">العقارات والمراجعة</TabsTrigger>
+            <TabsTrigger value="activity" className="gap-1"><BarChart3 className="w-4 h-4 hidden sm:inline" /> النشاط والزيارات</TabsTrigger>
             <TabsTrigger value="users">المستخدمين</TabsTrigger>
             <TabsTrigger value="feedback">الشكاوى والمقترحات</TabsTrigger>
           </TabsList>
@@ -166,6 +183,138 @@ export default function Admin() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="activity" className="space-y-6">
+            {isAnalyticsLoading ? (
+              <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+            ) : analytics ? (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2"><Eye className="w-5 h-5" /> زيارات كل صفحة</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>المسار</TableHead>
+                            <TableHead className="text-left w-28">العدد</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {analytics.pageViewsByPath.length === 0 ? (
+                            <TableRow><TableCell colSpan={2} className="text-muted-foreground text-center">لا توجد بيانات بعد</TableCell></TableRow>
+                          ) : (
+                            analytics.pageViewsByPath.map((row) => (
+                              <TableRow key={row.path}>
+                                <TableCell className="font-mono text-sm" dir="ltr">{row.path}</TableCell>
+                                <TableCell className="font-semibold">{row.count}</TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2"><Activity className="w-5 h-5" /> أنواع التفاعل مع العقارات</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>النوع</TableHead>
+                            <TableHead className="text-left w-28">العدد</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {Object.keys(analytics.interactionsByType).length === 0 ? (
+                            <TableRow><TableCell colSpan={2} className="text-muted-foreground text-center">لا توجد تفاعلات بعد</TableCell></TableRow>
+                          ) : (
+                            Object.entries(analytics.interactionsByType).map(([type, count]) => (
+                              <TableRow key={type}>
+                                <TableCell>{interactionTypeLabel(type)}</TableCell>
+                                <TableCell className="font-semibold">{count}</TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">أكثر العقارات مشاهدةً</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>العنوان</TableHead>
+                          <TableHead>البائع</TableHead>
+                          <TableHead>مشاهدات</TableHead>
+                          <TableHead>حفظ</TableHead>
+                          <TableHead>تواصل</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analytics.topPropertiesByViews.length === 0 ? (
+                          <TableRow><TableCell colSpan={5} className="text-muted-foreground text-center">لا توجد عقارات</TableCell></TableRow>
+                        ) : (
+                          analytics.topPropertiesByViews.map((p) => (
+                            <TableRow key={p.id}>
+                              <TableCell className="font-medium max-w-[200px] truncate">{p.title}</TableCell>
+                              <TableCell>{p.sellerId}</TableCell>
+                              <TableCell>{p.views}</TableCell>
+                              <TableCell>{p.saves}</TableCell>
+                              <TableCell>{p.contacts}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">نشاط المستخدمين (تفاعلات العقارات + زيارات الصفحات)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>المستخدم</TableHead>
+                          <TableHead>البريد</TableHead>
+                          <TableHead>تفاعلات</TableHead>
+                          <TableHead>زيارات صفحات</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analytics.userActivity.length === 0 ? (
+                          <TableRow><TableCell colSpan={4} className="text-muted-foreground text-center">لا يوجد نشاط مسجّل بعد</TableCell></TableRow>
+                        ) : (
+                          analytics.userActivity.map((u) => (
+                            <TableRow key={u.userId}>
+                              <TableCell className="font-medium">{u.name || u.userId}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
+                              <TableCell>{u.interactionCount}</TableCell>
+                              <TableCell>{u.pageViewCount}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </>
+            ) : null}
           </TabsContent>
 
           <TabsContent value="users">

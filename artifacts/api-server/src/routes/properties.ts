@@ -1,17 +1,42 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, gte, lte, desc } from "drizzle-orm";
-import { db, propertiesTable } from "@workspace/db";
 import { CreatePropertyBody, UpdatePropertyBody, GetPropertyParams, ListPropertiesQueryParams } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth";
 import jwt from "jsonwebtoken";
 import type { AuthPayload } from "../middlewares/auth";
+import {
+  ensureMongoConnection,
+  PropertyModel,
+  InteractionModel,
+  toDateISOString,
+  nextSequence,
+} from "../lib/mongo";
 
 type PropertyType = "apartment" | "villa" | "commercial" | "land";
 const VALID_PROPERTY_TYPES: PropertyType[] = ["apartment", "villa", "commercial", "land"];
 
 const router: IRouter = Router();
 
-function formatProperty(p: typeof propertiesTable.$inferSelect) {
+type PropertyDoc = {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  location: string;
+  area: number;
+  rooms?: number | null;
+  propertyType: PropertyType;
+  features: string[];
+  imageUrl?: string | null;
+  imageUrls?: string[];
+  sellerId: number;
+  status: "pending" | "approved" | "rejected";
+  views: number;
+  saves: number;
+  contacts: number;
+  createdAt: Date;
+};
+
+function formatProperty(p: PropertyDoc) {
   return {
     id: p.id,
     title: p.title,
@@ -19,16 +44,17 @@ function formatProperty(p: typeof propertiesTable.$inferSelect) {
     price: p.price,
     location: p.location,
     area: p.area,
-    rooms: p.rooms,
+    rooms: p.rooms ?? null,
     propertyType: p.propertyType,
     features: p.features,
-    imageUrl: p.imageUrl,
+    imageUrl: p.imageUrl ?? p.imageUrls?.[0] ?? null,
+    imageUrls: p.imageUrls ?? (p.imageUrl ? [p.imageUrl] : []),
     sellerId: p.sellerId,
     status: p.status,
     views: p.views,
     saves: p.saves,
     contacts: p.contacts,
-    createdAt: p.createdAt.toISOString(),
+    createdAt: toDateISOString(p.createdAt),
   };
 }
 
@@ -37,49 +63,82 @@ function isValidPropertyType(value: string): value is PropertyType {
 }
 
 router.get("/properties", async (req, res): Promise<void> => {
+  await ensureMongoConnection();
   const params = ListPropertiesQueryParams.safeParse(req.query);
-  const conditions = [eq(propertiesTable.status, "approved")];
+  const query: Record<string, unknown> = { status: "approved" };
 
   if (params.success) {
     if (params.data.search) {
-      conditions.push(ilike(propertiesTable.title, `%${params.data.search}%`));
+      query.title = { $regex: params.data.search, $options: "i" };
     }
     if (params.data.type && isValidPropertyType(params.data.type)) {
-      conditions.push(eq(propertiesTable.propertyType, params.data.type));
+      query.propertyType = params.data.type;
     }
     if (params.data.location) {
-      conditions.push(ilike(propertiesTable.location, `%${params.data.location}%`));
+      query.location = { $regex: params.data.location, $options: "i" };
     }
-    if (params.data.minPrice != null) {
-      conditions.push(gte(propertiesTable.price, params.data.minPrice));
-    }
-    if (params.data.maxPrice != null) {
-      conditions.push(lte(propertiesTable.price, params.data.maxPrice));
+    if (params.data.minPrice != null || params.data.maxPrice != null) {
+      query.price = {};
+      if (params.data.minPrice != null) (query.price as Record<string, number>).$gte = params.data.minPrice;
+      if (params.data.maxPrice != null) (query.price as Record<string, number>).$lte = params.data.maxPrice;
     }
   }
 
-  const properties = await db.select().from(propertiesTable)
-    .where(and(...conditions))
-    .orderBy(desc(propertiesTable.createdAt));
+  const properties = await PropertyModel.find(query).sort({ createdAt: -1 }).lean();
 
-  res.json(properties.map(formatProperty));
+  res.json(properties.map((p) => formatProperty(p as PropertyDoc)));
 });
 
 router.get("/properties/my", authMiddleware, async (req, res): Promise<void> => {
-  const properties = await db.select().from(propertiesTable)
-    .where(eq(propertiesTable.sellerId, req.user!.userId))
-    .orderBy(desc(propertiesTable.createdAt));
-  res.json(properties.map(formatProperty));
+  await ensureMongoConnection();
+  const properties = await PropertyModel.find({ sellerId: req.user!.userId }).sort({ createdAt: -1 }).lean();
+  res.json(properties.map((p) => formatProperty(p as PropertyDoc)));
+});
+
+router.get("/properties/seller/activity", authMiddleware, async (req, res): Promise<void> => {
+  const role = req.user!.role;
+  if (role !== "seller" && role !== "admin") {
+    res.status(403).json({ error: "غير مصرح" });
+    return;
+  }
+
+  await ensureMongoConnection();
+  const sellerId = req.user!.userId;
+  const myIds = await PropertyModel.find({ sellerId }).distinct("id");
+  if (myIds.length === 0) {
+    res.json({ recentInteractions: [] });
+    return;
+  }
+
+  const recent = await InteractionModel.find({ propertyId: { $in: myIds } })
+    .sort({ createdAt: -1 })
+    .limit(40)
+    .lean();
+
+  const propIds = [...new Set(recent.map((r) => r.propertyId))];
+  const props = await PropertyModel.find({ id: { $in: propIds } }).select({ id: 1, title: 1 }).lean();
+  const titleById = new Map(props.map((p) => [p.id, p.title]));
+
+  res.json({
+    recentInteractions: recent.map((r) => ({
+      id: r.id,
+      propertyId: r.propertyId,
+      propertyTitle: titleById.get(r.propertyId) ?? "",
+      interactionType: r.interactionType,
+      createdAt: toDateISOString(r.createdAt),
+    })),
+  });
 });
 
 router.get("/properties/:id", async (req, res): Promise<void> => {
+  await ensureMongoConnection();
   const params = GetPropertyParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
 
-  const [property] = await db.select().from(propertiesTable).where(eq(propertiesTable.id, params.data.id));
+  const property = await PropertyModel.findOne({ id: params.data.id }).lean();
   if (!property) {
     res.status(404).json({ error: "العقار غير موجود" });
     return;
@@ -103,6 +162,7 @@ router.get("/properties/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/properties", authMiddleware, async (req, res): Promise<void> => {
+  await ensureMongoConnection();
   if (req.user!.role !== "seller" && req.user!.role !== "admin") {
     res.status(403).json({ error: "يجب أن تكون بائعاً لإضافة عقار" });
     return;
@@ -119,7 +179,16 @@ router.post("/properties", authMiddleware, async (req, res): Promise<void> => {
     return;
   }
 
-  const [property] = await db.insert(propertiesTable).values({
+  const normalizedImageUrls = (parsed.data.imageUrls ?? [])
+    .map((url: string) => url.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  if (normalizedImageUrls.length === 0 && parsed.data.imageUrl) {
+    normalizedImageUrls.push(parsed.data.imageUrl);
+  }
+
+  const property = await PropertyModel.create({
+    id: await nextSequence("properties"),
     title: parsed.data.title,
     description: parsed.data.description,
     price: parsed.data.price,
@@ -128,15 +197,17 @@ router.post("/properties", authMiddleware, async (req, res): Promise<void> => {
     rooms: parsed.data.rooms ?? null,
     propertyType: parsed.data.propertyType,
     features: parsed.data.features || [],
-    imageUrl: parsed.data.imageUrl,
+    imageUrl: normalizedImageUrls[0] ?? parsed.data.imageUrl ?? null,
+    imageUrls: normalizedImageUrls,
     sellerId: req.user!.userId,
     status: "pending",
-  }).returning();
+  });
 
   res.status(201).json(formatProperty(property));
 });
 
 router.patch("/properties/:id", authMiddleware, async (req, res): Promise<void> => {
+  await ensureMongoConnection();
   const params = GetPropertyParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -149,7 +220,7 @@ router.patch("/properties/:id", authMiddleware, async (req, res): Promise<void> 
     return;
   }
 
-  const [existing] = await db.select().from(propertiesTable).where(eq(propertiesTable.id, params.data.id));
+  const existing = await PropertyModel.findOne({ id: params.data.id }).lean();
   if (!existing || existing.sellerId !== req.user!.userId) {
     res.status(404).json({ error: "العقار غير موجود" });
     return;
@@ -163,7 +234,17 @@ router.patch("/properties/:id", authMiddleware, async (req, res): Promise<void> 
   if (parsed.data.area !== undefined) updateData.area = parsed.data.area;
   if (parsed.data.rooms !== undefined) updateData.rooms = parsed.data.rooms;
   if (parsed.data.features !== undefined) updateData.features = parsed.data.features;
-  if (parsed.data.imageUrl !== undefined) updateData.imageUrl = parsed.data.imageUrl;
+  if (parsed.data.imageUrls !== undefined) {
+    const normalizedImageUrls = parsed.data.imageUrls
+      .map((url: string) => url.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    updateData.imageUrls = normalizedImageUrls;
+    updateData.imageUrl = normalizedImageUrls[0] ?? null;
+  } else if (parsed.data.imageUrl !== undefined) {
+    updateData.imageUrl = parsed.data.imageUrl;
+    updateData.imageUrls = parsed.data.imageUrl ? [parsed.data.imageUrl] : [];
+  }
   if (parsed.data.propertyType !== undefined) {
     if (!isValidPropertyType(parsed.data.propertyType)) {
       res.status(400).json({ error: "نوع العقار غير صالح" });
@@ -172,28 +253,34 @@ router.patch("/properties/:id", authMiddleware, async (req, res): Promise<void> 
     updateData.propertyType = parsed.data.propertyType;
   }
 
-  const [property] = await db.update(propertiesTable)
-    .set(updateData)
-    .where(eq(propertiesTable.id, params.data.id))
-    .returning();
+  const property = await PropertyModel.findOneAndUpdate(
+    { id: params.data.id },
+    updateData,
+    { new: true },
+  ).lean();
+  if (!property) {
+    res.status(404).json({ error: "العقار غير موجود" });
+    return;
+  }
 
   res.json(formatProperty(property));
 });
 
 router.delete("/properties/:id", authMiddleware, async (req, res): Promise<void> => {
+  await ensureMongoConnection();
   const params = GetPropertyParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
 
-  const [existing] = await db.select().from(propertiesTable).where(eq(propertiesTable.id, params.data.id));
+  const existing = await PropertyModel.findOne({ id: params.data.id }).lean();
   if (!existing || existing.sellerId !== req.user!.userId) {
     res.status(404).json({ error: "العقار غير موجود" });
     return;
   }
 
-  await db.delete(propertiesTable).where(eq(propertiesTable.id, params.data.id));
+  await PropertyModel.deleteOne({ id: params.data.id });
   res.sendStatus(204);
 });
 

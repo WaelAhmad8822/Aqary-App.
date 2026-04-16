@@ -106,6 +106,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /properties/seller/activity:
+    get:
+      operationId: getSellerActivity
+      tags: [properties]
+      summary: Recent interactions on seller listings
+      responses:
+        "200":
+          description: Recent activity for current seller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SellerActivityResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /properties:
     get:
       operationId: listProperties
@@ -270,6 +295,25 @@ paths:
       responses:
         "201":
           description: Interaction tracked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /track/page-view:
+    post:
+      operationId: trackPageView
+      tags: [interactions]
+      summary: Track SPA page visit (optional auth for user attribution)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrackPageViewBody"
+      responses:
+        "201":
+          description: Page view recorded
           content:
             application/json:
               schema:
@@ -601,6 +645,10 @@ components:
             type: string
         imageUrl:
           type: ["string", "null"]
+        imageUrls:
+          type: array
+          items:
+            type: string
         sellerId:
           type: integer
         status:
@@ -654,6 +702,11 @@ components:
             type: string
         imageUrl:
           type: string
+        imageUrls:
+          type: array
+          items:
+            type: string
+          maxItems: 3
       required:
         - title
         - description
@@ -685,6 +738,11 @@ components:
             type: string
         imageUrl:
           type: string
+        imageUrls:
+          type: array
+          items:
+            type: string
+          maxItems: 3
 
     RecommendedProperty:
       type: object
@@ -857,6 +915,100 @@ components:
       required:
         - message
 
+    TrackPageViewBody:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Client route path starting with /
+      required:
+        - path
+
+    PagePathCount:
+      type: object
+      properties:
+        path:
+          type: string
+        count:
+          type: integer
+      required:
+        - path
+        - count
+
+    PropertyLeaderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        views:
+          type: integer
+        saves:
+          type: integer
+        contacts:
+          type: integer
+        sellerId:
+          type: integer
+      required:
+        - id
+        - title
+        - views
+        - saves
+        - contacts
+        - sellerId
+
+    UserActivityItem:
+      type: object
+      properties:
+        userId:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        interactionCount:
+          type: integer
+        pageViewCount:
+          type: integer
+      required:
+        - userId
+        - name
+        - email
+        - interactionCount
+        - pageViewCount
+
+    SellerActivityEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        propertyId:
+          type: integer
+        propertyTitle:
+          type: string
+        interactionType:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - propertyId
+        - propertyTitle
+        - interactionType
+        - createdAt
+
+    SellerActivityResponse:
+      type: object
+      properties:
+        recentInteractions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SellerActivityEvent"
+      required:
+        - recentInteractions
+
     AnalyticsData:
       type: object
       properties:
@@ -870,12 +1022,35 @@ components:
           type: integer
         unresolvedFeedbacks:
           type: integer
+        totalPageViews:
+          type: integer
+        interactionsByType:
+          type: object
+          additionalProperties:
+            type: integer
+        pageViewsByPath:
+          type: array
+          items:
+            $ref: "#/components/schemas/PagePathCount"
+        topPropertiesByViews:
+          type: array
+          items:
+            $ref: "#/components/schemas/PropertyLeaderItem"
+        userActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserActivityItem"
       required:
         - totalUsers
         - totalProperties
         - totalInteractions
         - pendingProperties
         - unresolvedFeedbacks
+        - totalPageViews
+        - interactionsByType
+        - pageViewsByPath
+        - topPropertiesByViews
+        - userActivity
 
     UserPreferencesData:
       type: object

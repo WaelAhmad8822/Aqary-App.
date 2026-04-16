@@ -67,6 +67,7 @@ export interface PropertyItem {
   features: string[];
   /** @nullable */
   imageUrl?: string | null;
+  imageUrls?: string[];
   sellerId: number;
   status: string;
   views: number;
@@ -95,6 +96,8 @@ export interface CreatePropertyBody {
   propertyType: CreatePropertyBodyPropertyType;
   features?: string[];
   imageUrl?: string;
+  /** @maxItems 3 */
+  imageUrls?: string[];
 }
 
 export interface UpdatePropertyBody {
@@ -107,6 +110,8 @@ export interface UpdatePropertyBody {
   propertyType?: string;
   features?: string[];
   imageUrl?: string;
+  /** @maxItems 3 */
+  imageUrls?: string[];
 }
 
 export interface RecommendedProperty {
@@ -198,12 +203,58 @@ export interface CreateFeedbackBody {
   criteria?: string;
 }
 
+export interface TrackPageViewBody {
+  /** Client route path starting with / */
+  path: string;
+}
+
+export interface PagePathCount {
+  path: string;
+  count: number;
+}
+
+export interface PropertyLeaderItem {
+  id: number;
+  title: string;
+  views: number;
+  saves: number;
+  contacts: number;
+  sellerId: number;
+}
+
+export interface UserActivityItem {
+  userId: number;
+  name: string;
+  email: string;
+  interactionCount: number;
+  pageViewCount: number;
+}
+
+export interface SellerActivityEvent {
+  id: number;
+  propertyId: number;
+  propertyTitle: string;
+  interactionType: string;
+  createdAt: string;
+}
+
+export interface SellerActivityResponse {
+  recentInteractions: SellerActivityEvent[];
+}
+
+export type AnalyticsDataInteractionsByType = { [key: string]: number };
+
 export interface AnalyticsData {
   totalUsers: number;
   totalProperties: number;
   totalInteractions: number;
   pendingProperties: number;
   unresolvedFeedbacks: number;
+  totalPageViews: number;
+  interactionsByType: AnalyticsDataInteractionsByType;
+  pageViewsByPath: PagePathCount[];
+  topPropertiesByViews: PropertyLeaderItem[];
+  userActivity: UserActivityItem[];
 }
 
 export interface UserPreferencesData {

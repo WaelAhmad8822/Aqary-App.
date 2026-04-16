@@ -1,0 +1,2 @@
+
+D:\deploy\Gemini-Chatbot-main>  "C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\corepack\dist\corepack.js" pnpm --filter @workspace/api-server exec node -e fetch('http://localhost:5173').then(r=;process.exit(1);});

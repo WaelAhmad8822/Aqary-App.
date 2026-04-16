@@ -39,6 +39,7 @@ export default function Properties() {
       queryKey: ["properties", activeFilters]
     }
   });
+  const safeProperties = Array.isArray(properties) ? properties : [];
 
   const handleApplyFilters = () => {
     setActiveFilters({
@@ -154,7 +155,7 @@ export default function Properties() {
               {isLoading ? (
                 "جاري البحث..."
               ) : (
-                `تم العثور على ${properties?.length || 0} عقار`
+                `تم العثور على ${safeProperties.length} عقار`
               )}
             </div>
 
@@ -162,9 +163,9 @@ export default function Properties() {
               <div className="flex justify-center items-center min-h-[400px]">
                 <Loader2 className="w-10 h-10 animate-spin text-primary" />
               </div>
-            ) : properties && properties.length > 0 ? (
+            ) : safeProperties.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {properties.map((prop) => (
+                {safeProperties.map((prop) => (
                   <PropertyCard key={prop.id} property={prop} />
                 ))}
               </div>

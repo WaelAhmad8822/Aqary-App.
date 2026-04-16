@@ -60,6 +60,21 @@ export const GetMeResponse = zod.object({
 });
 
 /**
+ * @summary Recent interactions on seller listings
+ */
+export const GetSellerActivityResponse = zod.object({
+  recentInteractions: zod.array(
+    zod.object({
+      id: zod.number(),
+      propertyId: zod.number(),
+      propertyTitle: zod.string(),
+      interactionType: zod.string(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
  * @summary List all approved properties
  */
 export const ListPropertiesQueryParams = zod.object({
@@ -81,6 +96,7 @@ export const ListPropertiesResponseItem = zod.object({
   propertyType: zod.string(),
   features: zod.array(zod.string()),
   imageUrl: zod.string().nullish(),
+  imageUrls: zod.array(zod.string()).optional(),
   sellerId: zod.number(),
   status: zod.string(),
   views: zod.number(),
@@ -93,6 +109,8 @@ export const ListPropertiesResponse = zod.array(ListPropertiesResponseItem);
 /**
  * @summary Create property listing (seller)
  */
+export const createPropertyBodyImageUrlsMax = 3;
+
 export const CreatePropertyBody = zod.object({
   title: zod.string(),
   description: zod.string(),
@@ -103,6 +121,10 @@ export const CreatePropertyBody = zod.object({
   propertyType: zod.enum(["apartment", "villa", "commercial", "land"]),
   features: zod.array(zod.string()).optional(),
   imageUrl: zod.string().optional(),
+  imageUrls: zod
+    .array(zod.string())
+    .max(createPropertyBodyImageUrlsMax)
+    .optional(),
 });
 
 /**
@@ -123,6 +145,7 @@ export const GetPropertyResponse = zod.object({
   propertyType: zod.string(),
   features: zod.array(zod.string()),
   imageUrl: zod.string().nullish(),
+  imageUrls: zod.array(zod.string()).optional(),
   sellerId: zod.number(),
   status: zod.string(),
   views: zod.number(),
@@ -138,6 +161,8 @@ export const UpdatePropertyParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const updatePropertyBodyImageUrlsMax = 3;
+
 export const UpdatePropertyBody = zod.object({
   title: zod.string().optional(),
   description: zod.string().optional(),
@@ -148,6 +173,10 @@ export const UpdatePropertyBody = zod.object({
   propertyType: zod.string().optional(),
   features: zod.array(zod.string()).optional(),
   imageUrl: zod.string().optional(),
+  imageUrls: zod
+    .array(zod.string())
+    .max(updatePropertyBodyImageUrlsMax)
+    .optional(),
 });
 
 export const UpdatePropertyResponse = zod.object({
@@ -161,6 +190,7 @@ export const UpdatePropertyResponse = zod.object({
   propertyType: zod.string(),
   features: zod.array(zod.string()),
   imageUrl: zod.string().nullish(),
+  imageUrls: zod.array(zod.string()).optional(),
   sellerId: zod.number(),
   status: zod.string(),
   views: zod.number(),
@@ -190,6 +220,7 @@ export const GetMyPropertiesResponseItem = zod.object({
   propertyType: zod.string(),
   features: zod.array(zod.string()),
   imageUrl: zod.string().nullish(),
+  imageUrls: zod.array(zod.string()).optional(),
   sellerId: zod.number(),
   status: zod.string(),
   views: zod.number(),
@@ -239,6 +270,13 @@ export const TrackInteractionBody = zod.object({
     "time_spent",
   ]),
   seconds: zod.number().optional(),
+});
+
+/**
+ * @summary Track SPA page visit (optional auth for user attribution)
+ */
+export const TrackPageViewBody = zod.object({
+  path: zod.string().describe("Client route path starting with \/"),
 });
 
 /**
@@ -300,6 +338,7 @@ export const AdminListPropertiesResponseItem = zod.object({
   propertyType: zod.string(),
   features: zod.array(zod.string()),
   imageUrl: zod.string().nullish(),
+  imageUrls: zod.array(zod.string()).optional(),
   sellerId: zod.number(),
   status: zod.string(),
   views: zod.number(),
@@ -329,6 +368,7 @@ export const AdminApprovePropertyResponse = zod.object({
   propertyType: zod.string(),
   features: zod.array(zod.string()),
   imageUrl: zod.string().nullish(),
+  imageUrls: zod.array(zod.string()).optional(),
   sellerId: zod.number(),
   status: zod.string(),
   views: zod.number(),
@@ -355,6 +395,7 @@ export const AdminRejectPropertyResponse = zod.object({
   propertyType: zod.string(),
   features: zod.array(zod.string()),
   imageUrl: zod.string().nullish(),
+  imageUrls: zod.array(zod.string()).optional(),
   sellerId: zod.number(),
   status: zod.string(),
   views: zod.number(),
@@ -411,6 +452,33 @@ export const AdminGetAnalyticsResponse = zod.object({
   totalInteractions: zod.number(),
   pendingProperties: zod.number(),
   unresolvedFeedbacks: zod.number(),
+  totalPageViews: zod.number(),
+  interactionsByType: zod.record(zod.string(), zod.number()),
+  pageViewsByPath: zod.array(
+    zod.object({
+      path: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  topPropertiesByViews: zod.array(
+    zod.object({
+      id: zod.number(),
+      title: zod.string(),
+      views: zod.number(),
+      saves: zod.number(),
+      contacts: zod.number(),
+      sellerId: zod.number(),
+    }),
+  ),
+  userActivity: zod.array(
+    zod.object({
+      userId: zod.number(),
+      name: zod.string(),
+      email: zod.string(),
+      interactionCount: zod.number(),
+      pageViewCount: zod.number(),
+    }),
+  ),
 });
 
 /**
@@ -454,6 +522,7 @@ export const GetSavedPropertiesResponseItem = zod.object({
   propertyType: zod.string(),
   features: zod.array(zod.string()),
   imageUrl: zod.string().nullish(),
+  imageUrls: zod.array(zod.string()).optional(),
   sellerId: zod.number(),
   status: zod.string(),
   views: zod.number(),

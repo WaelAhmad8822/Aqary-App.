@@ -49,6 +49,23 @@ export function adminMiddleware(req: Request, res: Response, next: NextFunction)
   next();
 }
 
+/** Sets `req.user` when a valid Bearer token is present; otherwise continues without auth. */
+export function optionalAuthMiddleware(req: Request, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    next();
+    return;
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    req.user = decoded;
+  } catch {
+    // anonymous page view
+  }
+  next();
+}
+
 export function signToken(payload: AuthPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 }

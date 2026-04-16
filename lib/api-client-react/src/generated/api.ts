@@ -31,8 +31,10 @@ import type {
   PropertyItem,
   RecommendedProperty,
   RegisterBody,
+  SellerActivityResponse,
   SuccessResponse,
   TrackInteractionBody,
+  TrackPageViewBody,
   UpdatePreferencesBody,
   UpdatePropertyBody,
   UserPreferencesData,
@@ -350,6 +352,81 @@ export function useGetMe<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Recent interactions on seller listings
+ */
+export const getGetSellerActivityUrl = () => {
+  return `/api/properties/seller/activity`;
+};
+
+export const getSellerActivity = async (
+  options?: RequestInit,
+): Promise<SellerActivityResponse> => {
+  return customFetch<SellerActivityResponse>(getGetSellerActivityUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSellerActivityQueryKey = () => {
+  return [`/api/properties/seller/activity`] as const;
+};
+
+export const getGetSellerActivityQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSellerActivity>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSellerActivity>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSellerActivityQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSellerActivity>>
+  > = ({ signal }) => getSellerActivity({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSellerActivity>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSellerActivityQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSellerActivity>>
+>;
+export type GetSellerActivityQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Recent interactions on seller listings
+ */
+
+export function useGetSellerActivity<
+  TData = Awaited<ReturnType<typeof getSellerActivity>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSellerActivity>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSellerActivityQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -1030,6 +1107,92 @@ export const useTrackInteraction = <
   TContext
 > => {
   return useMutation(getTrackInteractionMutationOptions(options));
+};
+
+/**
+ * @summary Track SPA page visit (optional auth for user attribution)
+ */
+export const getTrackPageViewUrl = () => {
+  return `/api/track/page-view`;
+};
+
+export const trackPageView = async (
+  trackPageViewBody: TrackPageViewBody,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getTrackPageViewUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(trackPageViewBody),
+  });
+};
+
+export const getTrackPageViewMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof trackPageView>>,
+    TError,
+    { data: BodyType<TrackPageViewBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof trackPageView>>,
+  TError,
+  { data: BodyType<TrackPageViewBody> },
+  TContext
+> => {
+  const mutationKey = ["trackPageView"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof trackPageView>>,
+    { data: BodyType<TrackPageViewBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return trackPageView(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TrackPageViewMutationResult = NonNullable<
+  Awaited<ReturnType<typeof trackPageView>>
+>;
+export type TrackPageViewMutationBody = BodyType<TrackPageViewBody>;
+export type TrackPageViewMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Track SPA page visit (optional auth for user attribution)
+ */
+export const useTrackPageView = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof trackPageView>>,
+    TError,
+    { data: BodyType<TrackPageViewBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof trackPageView>>,
+  TError,
+  { data: BodyType<TrackPageViewBody> },
+  TContext
+> => {
+  return useMutation(getTrackPageViewMutationOptions(options));
 };
 
 /**

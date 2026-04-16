@@ -17,4 +17,6 @@ export interface CreatePropertyBody {
   propertyType: CreatePropertyBodyPropertyType;
   features?: string[];
   imageUrl?: string;
+  /** @maxItems 3 */
+  imageUrls?: string[];
 }

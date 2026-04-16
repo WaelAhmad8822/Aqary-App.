@@ -1,0 +1,2 @@
+
+D:\deploy\Gemini-Chatbot-main>  "C:\Program Files\nodejs\\node.exe"  "C:\Program Files\nodejs\\node_modules\corepack\dist\corepack.js" pnpm --filter @workspace/aqary exec node -e fetch('http://127.0.0.1:5173').then(r=,r.status)).catch(()=

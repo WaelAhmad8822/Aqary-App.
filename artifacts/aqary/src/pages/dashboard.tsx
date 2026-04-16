@@ -1,14 +1,23 @@
 import { useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
-import { useGetMyProperties, useCreateProperty, useUpdateProperty, useDeleteProperty, getGetMyPropertiesQueryKey } from "@workspace/api-client-react";
+import {
+  useGetMyProperties,
+  useCreateProperty,
+  useUpdateProperty,
+  useDeleteProperty,
+  getGetMyPropertiesQueryKey,
+  useGetSellerActivity,
+  getGetSellerActivityQueryKey,
+} from "@workspace/api-client-react";
 import type { CreatePropertyBody } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Home, Eye, Heart, Phone, TrendingUp, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Plus, Home, Eye, Heart, Phone, TrendingUp, Pencil, Trash2, Activity } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useForm } from "react-hook-form";
@@ -16,6 +25,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+
+const interactionLabel = (t: string) =>
+  ({
+    view: "مشاهدة",
+    save: "حفظ",
+    contact: "تواصل",
+    scroll: "تمرير",
+    time_spent: "وقت في الصفحة",
+  })[t] ?? t;
 
 const propertySchema = z.object({
   title: z.string().min(5, "العنوان يجب أن يكون 5 أحرف على الأقل"),
@@ -25,7 +44,9 @@ const propertySchema = z.object({
   area: z.coerce.number().min(1, "المساحة مطلوبة"),
   rooms: z.coerce.number().optional(),
   propertyType: z.enum(["apartment", "villa", "commercial", "land"]),
-  imageUrl: z.string().url("رابط الصورة غير صحيح").optional().or(z.literal("")),
+  imageUrl1: z.string().url("رابط الصورة الأولى غير صحيح").optional().or(z.literal("")),
+  imageUrl2: z.string().url("رابط الصورة الثانية غير صحيح").optional().or(z.literal("")),
+  imageUrl3: z.string().url("رابط الصورة الثالثة غير صحيح").optional().or(z.literal("")),
 });
 
 type PropertyFormValues = z.infer<typeof propertySchema>;
@@ -42,6 +63,12 @@ export default function Dashboard() {
     }
   });
 
+  const { data: sellerActivity, isLoading: activityLoading } = useGetSellerActivity({
+    query: {
+      queryKey: getGetSellerActivityQueryKey(),
+    },
+  });
+
   const createMutation = useCreateProperty();
   const updateMutation = useUpdateProperty();
   const deleteMutation = useDeleteProperty();
@@ -53,11 +80,27 @@ export default function Dashboard() {
       description: "",
       location: "",
       propertyType: "apartment",
-      imageUrl: "",
+      imageUrl1: "",
+      imageUrl2: "",
+      imageUrl3: "",
     },
   });
 
-  const openEditDialog = (prop: { id: number; title: string; description: string; price: number; location: string; area: number; rooms?: number | null; propertyType: string; imageUrl?: string | null }) => {
+  const openEditDialog = (prop: {
+    id: number;
+    title: string;
+    description: string;
+    price: number;
+    location: string;
+    area: number;
+    rooms?: number | null;
+    propertyType: string;
+    imageUrl?: string | null;
+    imageUrls?: string[];
+  }) => {
+    const images = prop.imageUrls && prop.imageUrls.length > 0
+      ? prop.imageUrls
+      : (prop.imageUrl ? [prop.imageUrl] : []);
     setEditingPropertyId(prop.id);
     form.reset({
       title: prop.title,
@@ -67,7 +110,9 @@ export default function Dashboard() {
       area: prop.area,
       rooms: prop.rooms ?? undefined,
       propertyType: prop.propertyType as "apartment" | "villa" | "commercial" | "land",
-      imageUrl: prop.imageUrl || "",
+      imageUrl1: images[0] || "",
+      imageUrl2: images[1] || "",
+      imageUrl3: images[2] || "",
     });
     setIsAddDialogOpen(true);
   };
@@ -79,7 +124,9 @@ export default function Dashboard() {
       description: "",
       location: "",
       propertyType: "apartment",
-      imageUrl: "",
+      imageUrl1: "",
+      imageUrl2: "",
+      imageUrl3: "",
     });
     setIsAddDialogOpen(true);
   };
@@ -89,16 +136,32 @@ export default function Dashboard() {
   };
 
   const onSubmit = async (values: PropertyFormValues) => {
+    const imageUrls = [values.imageUrl1, values.imageUrl2, values.imageUrl3]
+      .map((url) => (url || "").trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    const payload = {
+      title: values.title,
+      description: values.description,
+      price: values.price,
+      location: values.location,
+      area: values.area,
+      rooms: values.rooms,
+      propertyType: values.propertyType,
+      imageUrl: imageUrls[0] || undefined,
+      imageUrls,
+    };
+
     try {
       if (editingPropertyId) {
         await updateMutation.mutateAsync({
           id: editingPropertyId,
-          data: values,
+          data: payload,
         });
         toast({ title: "تم تحديث العقار بنجاح" });
       } else {
         await createMutation.mutateAsync({
-          data: values as CreatePropertyBody
+          data: payload as CreatePropertyBody
         });
         toast({ title: "تم إضافة العقار بنجاح" });
       }
@@ -261,11 +324,33 @@ export default function Dashboard() {
 
                   <FormField
                     control={form.control}
-                    name="imageUrl"
+                    name="imageUrl1"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>رابط الصورة (اختياري)</FormLabel>
+                        <FormLabel>رابط الصورة الأولى (اختياري)</FormLabel>
                         <FormControl><Input dir="ltr" className="text-right" {...field} data-testid="input-property-image" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="imageUrl2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>رابط الصورة الثانية (اختياري)</FormLabel>
+                        <FormControl><Input dir="ltr" className="text-right" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="imageUrl3"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>رابط الصورة الثالثة (اختياري)</FormLabel>
+                        <FormControl><Input dir="ltr" className="text-right" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -341,6 +426,48 @@ export default function Dashboard() {
           </Card>
         </div>
 
+        <Card className="mb-8 border-muted">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Activity className="w-5 h-5 text-primary" />
+              آخر النشاط على إعلاناتك
+            </CardTitle>
+            <p className="text-sm text-muted-foreground font-normal">
+              مشاهدات، حفظ، وتواصل مسجّلة من المستخدمين (يُحدَّث عند زيارة هذه الصفحة)
+            </p>
+          </CardHeader>
+          <CardContent>
+            {activityLoading ? (
+              <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+            ) : !sellerActivity?.recentInteractions?.length ? (
+              <p className="text-sm text-muted-foreground text-center py-8">لا يوجد نشاط بعد على عقاراتك.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>التاريخ</TableHead>
+                    <TableHead>العقار</TableHead>
+                    <TableHead>الإجراء</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sellerActivity.recentInteractions.map((ev) => (
+                    <TableRow key={ev.id}>
+                      <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
+                        {format(new Date(ev.createdAt), "yyyy/MM/dd HH:mm")}
+                      </TableCell>
+                      <TableCell className="font-medium max-w-[220px] truncate">{ev.propertyTitle || `#${ev.propertyId}`}</TableCell>
+                      <TableCell>
+                        <span className="text-sm">{interactionLabel(ev.interactionType)}</span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
         <h2 className="text-2xl font-bold mb-4 border-b pb-2">عقاراتي</h2>
 
         {isLoading ? (
@@ -353,7 +480,13 @@ export default function Dashboard() {
               <Card key={prop.id} className="overflow-hidden flex flex-col sm:flex-row" data-testid={`card-property-${prop.id}`}>
                 <div className="sm:w-48 h-48 sm:h-auto bg-muted relative shrink-0">
                   {prop.imageUrl ? (
-                    <img src={prop.imageUrl} alt={prop.title} className="w-full h-full object-cover" />
+                    <img
+                      src={prop.imageUrl}
+                      alt={prop.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
                       <Home className="w-12 h-12" />

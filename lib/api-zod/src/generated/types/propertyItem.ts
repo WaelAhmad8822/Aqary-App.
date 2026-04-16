@@ -19,6 +19,7 @@ export interface PropertyItem {
   features: string[];
   /** @nullable */
   imageUrl?: string | null;
+  imageUrls?: string[];
   sellerId: number;
   status: string;
   views: number;

@@ -25,6 +25,7 @@ export default function PropertyDetail() {
   const trackMutation = useTrackInteraction();
   
   const [isSaved, setIsSaved] = useState(false);
+  const [activeImage, setActiveImage] = useState<string | null>(null);
   const scrollTrackedRef = useRef(false);
   const startTimeRef = useRef<number>(Date.now());
   
@@ -138,6 +139,21 @@ export default function PropertyDetail() {
     land: "أرض",
   };
 
+  const propertyImages = property
+    ? [
+        ...new Set(
+          ((property as { imageUrls?: string[] }).imageUrls ?? [])
+            .concat(property.imageUrl ? [property.imageUrl] : [])
+            .filter(Boolean),
+        ),
+      ]
+    : [];
+
+  useEffect(() => {
+    if (!property) return;
+    setActiveImage(propertyImages[0] ?? null);
+  }, [property?.id]);
+
   if (isLoading) {
     return (
       <div className="min-h-[100dvh] flex flex-col bg-background">
@@ -163,6 +179,7 @@ export default function PropertyDetail() {
       </div>
     );
   }
+  const displayedImage = activeImage ?? propertyImages[0] ?? null;
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background">
@@ -170,12 +187,14 @@ export default function PropertyDetail() {
       
       <main className="flex-1">
         {/* Image Header */}
-        <div className="w-full h-[40vh] md:h-[60vh] relative bg-muted">
-          {property.imageUrl ? (
+        <div className="w-full h-[45vh] md:h-[65vh] relative bg-black/90">
+          {displayedImage ? (
             <img
-              src={property.imageUrl}
+              src={displayedImage}
               alt={property.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
+              loading="eager"
+              decoding="async"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -209,6 +228,33 @@ export default function PropertyDetail() {
             </div>
           </div>
         </div>
+
+        {propertyImages.length > 1 && (
+          <div className="container mx-auto px-4 -mt-8 relative z-10">
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {propertyImages.map((image, index) => (
+                <button
+                  key={`${image}-${index}`}
+                  type="button"
+                  onClick={() => setActiveImage(image)}
+                  className={`h-20 w-28 shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                    displayedImage === image
+                      ? "border-primary"
+                      : "border-white/60 hover:border-primary/70"
+                  }`}
+                >
+                  <img
+                    src={image}
+                    alt={`${property.title} ${index + 1}`}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">

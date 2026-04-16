@@ -17,13 +17,15 @@ export default function Home() {
       staleTime: 60000,
     }
   });
+  const safeRecentProperties = Array.isArray(recentProperties) ? recentProperties : [];
 
-  const { data: recommendations, isLoading: isRecLoading } = useGetRecommendations({
+  const { data: recommendations } = useGetRecommendations({
     query: {
       queryKey: ["recommendations"],
       retry: false,
     }
   });
+  const safeRecommendations = Array.isArray(recommendations) ? recommendations : [];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +76,7 @@ export default function Home() {
       </section>
 
       {/* Recommendations Section (only if logged in and has data) */}
-      {recommendations && recommendations.length > 0 && (
+      {safeRecommendations.length > 0 && (
         <section className="py-16 bg-secondary/10">
           <div className="container px-4">
             <div className="flex justify-between items-end mb-8">
@@ -85,7 +87,7 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {recommendations.slice(0, 4).map((prop) => (
+              {safeRecommendations.slice(0, 4).map((prop) => (
                 <PropertyCard key={prop.id} property={prop} />
               ))}
             </div>
@@ -112,9 +114,9 @@ export default function Home() {
             <div className="flex justify-center items-center min-h-[300px]">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
-          ) : recentProperties && recentProperties.length > 0 ? (
+          ) : safeRecentProperties.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {recentProperties.slice(0, 8).map((prop) => (
+              {safeRecentProperties.slice(0, 8).map((prop) => (
                 <PropertyCard key={prop.id} property={prop} />
               ))}
             </div>

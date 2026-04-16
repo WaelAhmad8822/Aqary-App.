@@ -1,6 +1,4 @@
 import { Router, type IRouter } from "express";
-import { eq, and, sql } from "drizzle-orm";
-import { db, propertiesTable, interactionsTable, userPreferencesTable } from "@workspace/db";
 import { authMiddleware } from "../middlewares/auth";
 import {
   cosineSimilarity,
@@ -9,22 +7,30 @@ import {
   getMatchReasons,
   INTERACTION_WEIGHTS,
 } from "../lib/cosineSimilarity";
+import {
+  ensureMongoConnection,
+  InteractionModel,
+  PropertyModel,
+  UserPreferenceModel,
+  toDateISOString,
+} from "../lib/mongo";
 
 const router: IRouter = Router();
 
 router.get("/recommendations", authMiddleware, async (req, res): Promise<void> => {
+  await ensureMongoConnection();
   const userId = req.user!.userId;
 
-  const [prefs] = await db.select().from(userPreferencesTable).where(eq(userPreferencesTable.userId, userId));
+  const prefs = await UserPreferenceModel.findOne({ userId }).lean();
 
-  const properties = await db.select().from(propertiesTable).where(eq(propertiesTable.status, "approved"));
+  const properties = await PropertyModel.find({ status: "approved" }).lean();
 
   if (properties.length === 0) {
     res.json([]);
     return;
   }
 
-  const interactions = await db.select().from(interactionsTable).where(eq(interactionsTable.userId, userId));
+  const interactions = await InteractionModel.find({ userId }).lean();
 
   const behaviorScores: Record<number, number> = {};
   for (const interaction of interactions) {
@@ -38,7 +44,12 @@ router.get("/recommendations", authMiddleware, async (req, res): Promise<void> =
   const maxBehavior = Math.max(...Object.values(behaviorScores), 1);
 
   const userVector = prefs
-    ? buildUserVector(prefs.maxBudget, prefs.preferredLocation, prefs.preferredType, prefs.preferredFeatures)
+    ? buildUserVector(
+        prefs.maxBudget ?? null,
+        prefs.preferredLocation ?? null,
+        prefs.preferredType ?? null,
+        prefs.preferredFeatures ?? [],
+      )
     : buildUserVector(null, null, null, []);
 
   const scored = properties.map((property) => {
@@ -56,7 +67,12 @@ router.get("/recommendations", authMiddleware, async (req, res): Promise<void> =
     const matchReasons = prefs
       ? getMatchReasons(
           { price: property.price, location: property.location, propertyType: property.propertyType, features: property.features },
-          { maxBudget: prefs.maxBudget, preferredLocation: prefs.preferredLocation, preferredType: prefs.preferredType, preferredFeatures: prefs.preferredFeatures },
+          {
+            maxBudget: prefs.maxBudget ?? null,
+            preferredLocation: prefs.preferredLocation ?? null,
+            preferredType: prefs.preferredType ?? null,
+            preferredFeatures: prefs.preferredFeatures ?? [],
+          },
         )
       : ["مقترح لك"];
 
@@ -70,13 +86,14 @@ router.get("/recommendations", authMiddleware, async (req, res): Promise<void> =
       rooms: property.rooms,
       propertyType: property.propertyType,
       features: property.features,
-      imageUrl: property.imageUrl,
+      imageUrl: property.imageUrl ?? property.imageUrls?.[0] ?? null,
+      imageUrls: property.imageUrls ?? (property.imageUrl ? [property.imageUrl] : []),
       sellerId: property.sellerId,
       status: property.status,
       views: property.views,
       saves: property.saves,
       contacts: property.contacts,
-      createdAt: property.createdAt.toISOString(),
+      createdAt: toDateISOString(property.createdAt),
       matchScore: Math.round(finalScore * 100),
       matchReasons,
     };

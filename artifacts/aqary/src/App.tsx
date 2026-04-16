@@ -1,10 +1,12 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { useEffect, useRef } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { ChatWidget } from "@/components/chat/ChatWidget";
+import { trackPageView } from "@workspace/api-client-react";
 
 // Pages
 import NotFound from "@/pages/not-found";
@@ -18,6 +20,20 @@ import Admin from "@/pages/admin";
 import Saved from "@/pages/saved";
 
 const queryClient = new QueryClient();
+
+function PageViewTracker() {
+  const [loc] = useLocation();
+  const lastPath = useRef<string | null>(null);
+
+  useEffect(() => {
+    const path = loc && loc.length > 0 ? loc : "/";
+    if (lastPath.current === path) return;
+    lastPath.current = path;
+    trackPageView({ path }).catch(() => {});
+  }, [loc]);
+
+  return null;
+}
 
 function Router() {
   return (
@@ -56,6 +72,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <PageViewTracker />
           <AuthProvider>
             <Router />
             <ChatWidget />

@@ -16,4 +16,6 @@ export interface UpdatePropertyBody {
   propertyType?: string;
   features?: string[];
   imageUrl?: string;
+  /** @maxItems 3 */
+  imageUrls?: string[];
 }

@@ -7,6 +7,7 @@
  */
 
 export * from "./analyticsData";
+export * from "./analyticsDataInteractionsByType";
 export * from "./authResponse";
 export * from "./chatHistoryItem";
 export * from "./chatHistoryItemRole";
@@ -21,14 +22,20 @@ export * from "./feedbackItem";
 export * from "./healthStatus";
 export * from "./listPropertiesParams";
 export * from "./loginBody";
+export * from "./pagePathCount";
 export * from "./propertyItem";
+export * from "./propertyLeaderItem";
 export * from "./recommendedProperty";
 export * from "./registerBody";
 export * from "./registerBodyRole";
+export * from "./sellerActivityEvent";
+export * from "./sellerActivityResponse";
 export * from "./successResponse";
 export * from "./trackInteractionBody";
 export * from "./trackInteractionBodyInteractionType";
+export * from "./trackPageViewBody";
 export * from "./updatePreferencesBody";
 export * from "./updatePropertyBody";
+export * from "./userActivityItem";
 export * from "./userPreferencesData";
 export * from "./userProfile";
