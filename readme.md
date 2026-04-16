@@ -74,6 +74,11 @@ In **Framework Preset**, choose **Other** (or leave auto-detect off). The repo `
 
 If you see **“No entrypoint found in output directory”**, it usually means Vercel was treating the output like a server app. Using **Framework: Other** / `framework: null` and the `build:web` script fixes that.
 
+If **`pnpm run build:web` exits with code 1**, open the full build log on Vercel. Common causes:
+
+- **Install failed** (before build): run `pnpm install` locally with the same lockfile; if `minimumReleaseAge` in `pnpm-workspace.yaml` blocks a new package, you may need to wait or adjust the allowlist.
+- **Nested pnpm**: the repo uses `pnpm -C artifacts/aqary run build` so the build does not spawn a second `pnpm` process (more reliable on CI).
+
 Set these Environment Variables in Vercel Project Settings:
 
 - `MONGODB_URI` (or `DATABASE_URL`)
