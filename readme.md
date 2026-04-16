@@ -70,6 +70,7 @@ This repo is configured for Vercel with:
 - Serverless API entry at `api/[...all].ts` (Express app)
 
 In the Vercel project **Settings → General → Root Directory**, leave the root as the **repository root** (`.`).  
+If Root Directory is set to a subfolder (for example `artifacts/aqary`), the build must still run scripts from the monorepo root — `vercel.json` uses `pnpm -w run build:web` (`-w` = workspace root) so the command works from any package in the workspace. Prefer keeping Root Directory at the repo root.  
 In **Framework Preset**, choose **Other** (or leave auto-detect off). The repo `vercel.json` sets `"framework": null` so Vercel treats the build output as a **static site** (HTML/JS/CSS from Vite), not a Node server entry in that folder.
 
 If you see **“No entrypoint found in output directory”**, it usually means Vercel was treating the output like a server app. Using **Framework: Other** / `framework: null` and the `build:web` script fixes that.
