@@ -2,14 +2,15 @@ import mongoose, { Schema, model } from "mongoose";
 
 const mongoUri = process.env.MONGODB_URI || process.env.DATABASE_URL;
 
-if (!mongoUri) {
-  throw new Error("MONGODB_URI (or DATABASE_URL) must be set.");
-}
-
 let connectPromise: Promise<typeof mongoose> | null = null;
 
 export function ensureMongoConnection(): Promise<typeof mongoose> {
-  const uri = mongoUri as string;
+  if (!mongoUri) {
+    return Promise.reject(
+      new Error("MONGODB_URI (or DATABASE_URL) must be set for database access."),
+    );
+  }
+  const uri = mongoUri;
   if (!connectPromise) {
     connectPromise = mongoose.connect(uri, {
       dbName: process.env.MONGODB_DB_NAME || "aqary",

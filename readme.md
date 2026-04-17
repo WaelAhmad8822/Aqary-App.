@@ -90,10 +90,12 @@ If the build step fails, open the full log on Vercel. Common causes:
 
 Set these Environment Variables in Vercel Project Settings:
 
-- `MONGODB_URI` (or `DATABASE_URL`)
+- `MONGODB_URI` (or `DATABASE_URL`) — **required** for any route that uses the database (without it, those requests fail).
 - `MONGODB_DB_NAME` (optional, defaults to `aqary`)
-- `JWT_SECRET` (or `SESSION_SECRET`)
+- `JWT_SECRET` (or `SESSION_SECRET`) — **required** for login/register and any authenticated route.
 - `OLLAMA_BASE_URL` (or `LLM_BASE_URL`) for chatbot model endpoint
+
+If the serverless function returns **500 / FUNCTION_INVOCATION_FAILED**, open **Vercel → Project → Logs** and check for missing env or Mongo connection errors. **`GET /api/healthz`** should respond with JSON even when only part of the stack is configured, so you can confirm the function is running.
 
 Optional notes:
 

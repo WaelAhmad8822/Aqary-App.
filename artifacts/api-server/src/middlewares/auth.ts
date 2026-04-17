@@ -9,7 +9,10 @@ function getJwtSecret(): string {
   return secret;
 }
 
-const JWT_SECRET: string = getJwtSecret();
+/** Lazy so importing this module does not crash serverless cold starts when env is missing (e.g. health checks). */
+function jwtSecret(): string {
+  return getJwtSecret();
+}
 
 export interface AuthPayload {
   userId: number;
@@ -32,7 +35,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
   const token = authHeader.split(" ")[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    const decoded = jwt.verify(token, jwtSecret()) as AuthPayload;
     req.user = decoded;
     next();
   } catch {
@@ -58,7 +61,7 @@ export function optionalAuthMiddleware(req: Request, _res: Response, next: NextF
   }
   const token = authHeader.split(" ")[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    const decoded = jwt.verify(token, jwtSecret()) as AuthPayload;
     req.user = decoded;
   } catch {
     // anonymous page view
@@ -67,5 +70,5 @@ export function optionalAuthMiddleware(req: Request, _res: Response, next: NextF
 }
 
 export function signToken(payload: AuthPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign(payload, jwtSecret(), { expiresIn: "7d" });
 }
