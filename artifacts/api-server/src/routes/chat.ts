@@ -275,11 +275,10 @@ ${userMessage}`;
   }
 }
 
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || process.env.LLM_BASE_URL || "";
-
 async function callOllama(systemPrompt: string, conversationHistory: Array<{ role: string; content: string }>, userMessage: string): Promise<string> {
   try {
-    if (!OLLAMA_BASE_URL) {
+    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || process.env.LLM_BASE_URL || "";
+    if (!ollamaBaseUrl) {
       logger.error("OLLAMA_BASE_URL (or LLM_BASE_URL) is not configured");
       return "عذراً، خدمة الدردشة غير مهيأة حالياً. يرجى المحاولة لاحقاً.";
     }
@@ -293,11 +292,11 @@ async function callOllama(systemPrompt: string, conversationHistory: Array<{ rol
       { role: "user", content: userMessage },
     ];
 
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+    const response = await fetch(`${ollamaBaseUrl}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(OLLAMA_BASE_URL.includes("ngrok") ? { "ngrok-skip-browser-warning": "true" } : {}),
+        ...(ollamaBaseUrl.includes("ngrok") ? { "ngrok-skip-browser-warning": "true" } : {}),
       },
       body: JSON.stringify({
         model: "llama3",

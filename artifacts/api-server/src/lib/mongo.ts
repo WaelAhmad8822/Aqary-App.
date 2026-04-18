@@ -31,9 +31,9 @@ export async function ensureMongoConnection(): Promise<typeof mongoose> {
     mongooseCache.promise = mongoose
       .connect(uri, {
         dbName: process.env.MONGODB_DB_NAME || "aqary",
-        // Connection pool settings for serverless
+        // Serverless: avoid keeping idle sockets; Atlas + warm lambdas still reuse one connection.
         maxPoolSize: 10,
-        minPoolSize: 2,
+        minPoolSize: 0,
         // Socket timeouts
         socketTimeoutMS: 45000,
         serverSelectionTimeoutMS: 5000,
