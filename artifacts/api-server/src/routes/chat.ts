@@ -22,6 +22,18 @@ interface ConversationSlots {
   features: string[];
 }
 
+/** Mongoose `lean()` on `findOne` needs an explicit doc shape or TS infers a broken union. */
+type ConversationStateLeanDoc = {
+  slots?: {
+    role?: ConversationSlots["role"] | null;
+    payment?: ConversationSlots["payment"] | null;
+    budget?: number | null;
+    location?: string | null;
+    propertyType?: string | null;
+    features?: string[];
+  } | null;
+} | null;
+
 interface MatchedPropertyResult {
   id: number;
   title: string;
@@ -351,14 +363,15 @@ router.post("/chat", authMiddleware, async (req, res): Promise<void> => {
     feedbackCreated = true;
   }
 
-  const stateDoc = await ConversationStateModel.findOne({ userId, sessionId }).lean();
+  const stateDoc = await ConversationStateModel.findOne({ userId, sessionId }).lean<ConversationStateLeanDoc>();
+  const persistedFeatures = stateDoc?.slots?.features;
   const persistedSlots: ConversationSlots = {
     role: (stateDoc?.slots?.role as ConversationSlots["role"]) ?? null,
     payment: (stateDoc?.slots?.payment as ConversationSlots["payment"]) ?? null,
     budget: stateDoc?.slots?.budget ?? null,
     location: stateDoc?.slots?.location ?? null,
     propertyType: stateDoc?.slots?.propertyType ?? null,
-    features: Array.isArray(stateDoc?.slots?.features) ? stateDoc!.slots.features : [],
+    features: Array.isArray(persistedFeatures) ? persistedFeatures : [],
   };
 
   // Primary source is model analysis; fallback is lightweight structured extraction.
