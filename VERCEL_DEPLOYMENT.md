@@ -4,6 +4,20 @@ This project is now configured to deploy as a single Vercel project:
 - Frontend: static Vite build from `artifacts/aqary`
 - API: serverless function from `api/[...all].ts` serving the Express app
 
+### Root directory (required)
+
+In **Project → Settings → General → Root Directory**, keep the default **empty** (repository root / `.`).
+
+The serverless entry file is **`api/[...all].ts` at the repo root**, and `vercel.json` paths such as `pnpm -C artifacts/api-server run build` are written for that root. If you set Root Directory to `artifacts/api-server`, the build becomes wrong (`pnpm -C artifacts/api-server` resolves under that folder), and you may see:
+
+`ENOENT: no such file or directory, lstat '.../artifacts/api-server/artifacts'`
+
+**Frontend-only** deployments use a **separate Vercel project** with Root Directory `artifacts/aqary` (see [Split deployment](#split-deployment-frontend-and-api-on-separate-projects) below). Do not use `artifacts/api-server` as Root Directory for the combined or API-serverless setups described here.
+
+### Node.js version
+
+Root `package.json` has `"engines": { "node": "20.x" }`. In **Project → Settings → General → Node.js Version**, choose **20.x** so the build matches local tooling and avoids engine warnings.
+
 ## Required Environment Variables
 
 Set these in your Vercel project settings:
@@ -55,7 +69,7 @@ Set these in your Vercel project settings:
 5. **Connection Pooling Configuration**
    - The updated `mongo.ts` now includes:
      - `maxPoolSize: 10` - Maximum connections
-     - `minPoolSize: 2` - Minimum connections
+     - `minPoolSize: 0` - Safer for serverless (no idle sockets)
      - `socketTimeoutMS: 45000` - Close idle connections after 45s
      - `serverSelectionTimeoutMS: 5000` - Timeout for server selection
      - `retryWrites: true` - Enable automatic retries
