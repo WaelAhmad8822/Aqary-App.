@@ -62,6 +62,12 @@ From repo root:
 
 - Keep `.env` values configured for backend runtime (DB connection, JWT secrets, and any chat provider settings).
 
+### Production API URL (frontend)
+
+Production builds default the API base to **Railway**: `https://workspaceapi-server-production-e3b4.up.railway.app` (see `artifacts/aqary/src/main.tsx`). Override at build time with `VITE_API_BASE_URL`. For a same-origin Vercel app that serves both SPA and `/api`, set `VITE_API_RELATIVE=true` so the client keeps using relative `/api/...` paths.
+
+On Railway, set **`CORS_ORIGIN`** to your frontend origin (e.g. `https://your-app.vercel.app`) so the browser can call the API from another domain.
+
 ## Vercel Deployment
 
 This repo is configured for Vercel with:
@@ -99,5 +105,5 @@ If the serverless function returns **500 / FUNCTION_INVOCATION_FAILED**, open **
 
 Optional notes:
 
-- Keep API calls relative (`/api/...`) from the frontend.
+- If the API is on the **same host** as the SPA, use `VITE_API_RELATIVE=true` instead of the default Railway base URL.
 - If chatbot provider is not configured, chat returns a friendly "service not configured" message.
