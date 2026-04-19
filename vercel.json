@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "corepack enable && pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm -C artifacts/api-server run build",
+  "buildCommand": "pnpm run build:vercel",
   "outputDirectory": "artifacts/aqary/dist/public",
   "functions": {
     "api/[...all].ts": {

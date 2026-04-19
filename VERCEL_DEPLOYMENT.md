@@ -30,8 +30,12 @@ Set these in your Vercel project settings:
 ## Build and Output
 
 - Install command: `corepack enable && pnpm install --frozen-lockfile`
-- Build command: `pnpm -C artifacts/api-server run build && pnpm -C artifacts/aqary run build:web`
+- Build command: `pnpm run build:vercel` (runs API esbuild **and** Vite — see root `package.json`)
 - Output directory: `artifacts/aqary/dist/public`
+
+If you change the build command to **only** `pnpm -C artifacts/api-server run build`, the frontend bundle is never produced and Vercel errors with something like **No Output Directory named "public"** while `outputDirectory` still expects `artifacts/aqary/dist/public`.
+
+In **Project → Settings → Build & Development Settings**, leave **Build Command** empty so root `vercel.json` applies, or paste the same as above. Clear **Output Directory** override there too (`artifacts/aqary/dist/public` comes from `vercel.json`).
 
 ## Troubleshooting MongoDB Connection Issues
 
