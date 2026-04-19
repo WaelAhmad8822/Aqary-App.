@@ -67,3 +67,33 @@ Set these in your Vercel project settings:
 - SPA routes are rewritten to `index.html`.
 - The frontend already calls relative `/api/...` endpoints, so no client API URL changes are required for same-origin deployment.
 - Health check endpoint `/api/healthz` can be used to verify both API and database connectivity.
+
+---
+
+## Split deployment (frontend and API on separate projects)
+
+Use two Vercel projects (or host the API on Railway/Render/Fly with `node artifacts/api-server/dist/index.mjs` and the same env vars). The app supports both patterns.
+
+### 1) Frontend-only (static Vite app)
+
+Create a **new Vercel project** linked to this repo:
+
+- **Root Directory**: `artifacts/aqary` (important: avoids deploying the root `api/` serverless folder).
+- **Framework Preset**: Other, or leave empty — `artifacts/aqary/vercel.json` defines install/build/output.
+- **Environment variables**:
+  - `VITE_API_BASE_URL` — full origin of your API with **no** trailing slash, e.g. `https://your-api.vercel.app` or `https://api.yourdomain.com`.
+
+Install/build use the monorepo root (`cd ../..`) so workspace packages resolve.
+
+### 2) API-only (Express on Vercel serverless)
+
+Create a **second Vercel project** linked to the **same repo**:
+
+- **Root Directory**: `.` (repository root).
+- Replace the root `vercel.json` with the contents of [`deploy/vercel-api.json`](deploy/vercel-api.json) (or merge manually: build only `artifacts/api-server`, `outputDirectory` = `deploy/api-placeholder`, keep the `functions` block for `api/[...all].ts`).
+- **Environment variables**: `MONGODB_URI`, `JWT_SECRET`, `NODE_ENV=production`, optional `OLLAMA_BASE_URL`, etc.
+- **CORS**: set `CORS_ORIGIN` to your frontend origin(s), comma-separated, e.g. `https://your-app.vercel.app,https://www.yourdomain.com`. If unset, the API keeps permissive CORS (fine for many setups; tighten in production when you know the frontend URL).
+
+### 3) Local / combined deploy (unchanged)
+
+Leave `VITE_API_BASE_URL` **unset** in the frontend build so the client keeps using same-origin `/api/...` (single Vercel project with the root `vercel.json` that builds both).
